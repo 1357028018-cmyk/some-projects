@@ -1,0 +1,72 @@
+# 构建输出
+Debug/
+Release/
+Build/
+*.o
+*.d
+*.map
+*.hex
+*.bin
+*.elf
+*.axf
+*.lst
+*.su
+*.pyc
+__pycache__/
+
+# IDE / 编辑器
+.metadata/
+.cproject
+.project
+.settings/
+*.launch
+*.uvguix.*
+*.uvoptx
+
+# 包管理器 / npm / node
+node_modules/
+.opencode/
+package-lock.json
+
+# 文档生成
+docs/html/
+docs/xml/
+docs/latex/
+
+# 编译中间文件
+*.crf
+*.htm
+*.dep
+*.sct
+*.lnp
+RTE/
+
+# RT-Thread / env
+packages/
+*.config
+*.config.old
+.sconsign.dblite
+.env/
+
+# 库文件 / 二进制
+*.lib
+*.a
+*.dll
+*.exe
+*.so
+
+# 大型二进制 / 非源码
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.xlsx
+*.docx
+*.pptx
+
+# 其他
+Thumbs.db
+.DS_Store
+*.bak
+*.swp
