@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nocturne & Dawn — 睡姿监测</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --font-heading: Georgia, "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+            --font-body: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+            --font-mono: "SF Mono", "Consolas", "Courier New", monospace;
+            --radius: 14px;
+            --radius-sm: 8px;
+            --transition: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        [data-theme="dark"] {
+            --bg-root: #0a0c16;
+            --bg-card: #11142a;
+            --bg-card-alt: #161a36;
+            --text-primary: #e8e6f0;
+            --text-secondary: #8a88a8;
+            --text-muted: #5a5880;
+            --accent: #64b5f6;
+            --accent-soft: rgba(100,181,246,0.12);
+            --accent-warm: #ffd54f;
+            --accent-green: #4db6ac;
+            --accent-red: #ef5350;
+            --accent-orange: #ff9800;
+            --border: #1e2140;
+            --border-focus: #334166;
+            --shadow: rgba(0,0,0,0.3);
+            --chart-grid: #1e2140;
+            --chart-text: #8a88a8;
+            --cal-empty: #161a36;
+            --posture-supine: #4a90d9;
+            --posture-left: #4db6ac;
+            --posture-right: #e8a838;
+            --posture-noise: #9b7fd4;
+            --posture-unlabeled: #5a5880;
+            --tab-active-line: #64b5f6;
+            --tab-inactive: #5a5880;
+            --tab-hover: #8a88a8;
+            --status-connected-bg: rgba(77,182,172,0.18);
+            --status-connected-text: #4db6ac;
+            --status-disconnected-bg: rgba(239,83,80,0.18);
+            --status-disconnected-text: #ef5350;
+            --btn-primary-bg: #64b5f6;
+            --btn-primary-text: #0a0c16;
+            --stats-item-bg: #0e1121;
+            --bg-noise: radial-gradient(ellipse 80% 60% at 30% 20%, rgba(100,181,246,0.03) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 70% 80%, rgba(155,127,212,0.03) 0%, transparent 50%);
+        }
+
+        [data-theme="light"] {
+            --bg-root: #f6f3ed;
+            --bg-card: #ffffff;
+            --bg-card-alt: #faf8f4;
+            --text-primary: #2d2a26;
+            --text-secondary: #7d7a74;
+            --text-muted: #b5b0a8;
+            --accent: #5c8a67;
+            --accent-soft: rgba(92,138,103,0.12);
+            --accent-warm: #e89e4a;
+            --accent-green: #5c8a67;
+            --accent-red: #c25a52;
+            --accent-orange: #d4853e;
+            --border: #e5e0d8;
+            --border-focus: #c8c0b0;
+            --shadow: rgba(0,0,0,0.06);
+            --chart-grid: #e8e4dc;
+            --chart-text: #7d7a74;
+            --cal-empty: #f0ece6;
+            --posture-supine: #4a8dc7;
+            --posture-left: #4da89a;
+            --posture-right: #d4953a;
+            --posture-noise: #8b6fc0;
+            --posture-unlabeled: #9d9990;
+            --tab-active-line: #5c8a67;
+            --tab-inactive: #b5b0a8;
+            --tab-hover: #7d7a74;
+            --status-connected-bg: rgba(92,138,103,0.15);
+            --status-connected-text: #3d6b48;
+            --status-disconnected-bg: rgba(194,90,82,0.15);
+            --status-disconnected-text: #c25a52;
+            --btn-primary-bg: #5c8a67;
+            --btn-primary-text: #ffffff;
+            --stats-item-bg: #f7f4ef;
+            --bg-noise: none;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-root);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background var(--transition), color var(--transition);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: var(--bg-noise);
+            pointer-events: none;
+            z-index: 0;
+            transition: background var(--transition);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--bg-root);
+            border-bottom: 1px solid var(--border);
+            padding: 0.8rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background var(--transition), border-color var(--transition);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header h1 {
+            font-family: var(--font-heading);
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            color: var(--text-primary);
+            transition: color var(--transition);
+        }
+
+        .status-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            transition: all var(--transition);
+        }
+        .status-connected {
+            background: var(--status-connected-bg);
+            color: var(--status-connected-text);
+        }
+        .status-disconnected {
+            background: var(--status-disconnected-bg);
+            color: var(--status-disconnected-text);
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+            position: relative;
+            top: -1px;
+        }
+        .status-connected .status-dot {
+            background: var(--status-connected-text);
+            animation: breathe 2s ease-in-out infinite;
+        }
+        .status-disconnected .status-dot {
+            background: var(--status-disconnected-text);
+        }
+
+        @keyframes breathe {
+            0%, 100% { box-shadow: 0 0 3px var(--status-connected-text); }
+            50% { box-shadow: 0 0 8px var(--status-connected-text), 0 0 16px var(--status-connected-text); }
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition);
+        }
+        .theme-toggle:hover {
+            border-color: var(--border-focus);
+            color: var(--accent-warm);
+            transform: rotate(15deg);
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.25rem;
+            position: relative;
+            transition: border-color var(--transition);
+        }
+
+        .tab-btn {
+            padding: 0.55rem 1.1rem;
+            border: none;
+            background: none;
+            color: var(--tab-inactive);
+            font-size: 0.82rem;
+            font-family: var(--font-body);
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            position: relative;
+            transition: color var(--transition);
+        }
+        .tab-btn::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            border-radius: 2px 2px 0 0;
+            background: var(--tab-active-line);
+            transition: width 0.3s ease;
+        }
+        .tab-btn:hover { color: var(--tab-hover); }
+        .tab-btn.active { color: var(--accent); }
+        .tab-btn.active::after { width: 60%; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 1rem 1.25rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.85rem;
+        }
+        @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+        .full-width { grid-column: span 2; }
+        @media (max-width: 600px) { .full-width { grid-column: span 1; } }
+
+        .vitals-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0; justify-content: center; }
+        .vital-item { background: var(--bg-card-alt); border-radius: var(--radius-sm); padding: 0.4rem 0.8rem; text-align: center; min-width: 90px; }
+        .vital-value { font-size: 1.1rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent); }
+        .vital-label { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.1rem; }
+        .vital-snore-yes { color: var(--accent-red); }
+        .vital-snore-no { color: var(--accent-green); }
+
+        .manual-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; justify-content: center; }
+        .manual-btn { padding: 0.4rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card-alt); color: var(--text-primary); cursor: pointer; font-size: 0.75rem; transition: all 0.2s; }
+        .manual-btn:active { transform: scale(0.95); }
+        .manual-btn.inflate { border-color: var(--accent); color: var(--accent); }
+        .manual-btn.inflate:active { background: var(--accent); color: var(--btn-primary-text); }
+        .manual-btn.deflate { border-color: var(--accent-red); color: var(--accent-red); }
+        .manual-btn.deflate:active { background: var(--accent-red); color: #fff; }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.35rem;
+            border: 1px solid var(--border);
+            transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+            animation: cardIn 0.5s ease backwards;
+        }
+        .card:nth-child(1) { animation-delay: 0.05s; }
+        .card:nth-child(2) { animation-delay: 0.1s; }
+        .card:nth-child(3) { animation-delay: 0.15s; }
+        .card:nth-child(4) { animation-delay: 0.2s; }
+        .card:nth-child(5) { animation-delay: 0.25s; }
+
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card h2 {
+            font-family: var(--font-heading);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.85rem;
+            transition: color var(--transition);
+        }
+
+        .posture-display {
+            text-align: center;
+            padding: 1.5rem 0;
+        }
+        .posture-main-icon {
+            font-size: 3.5rem;
+            display: block;
+            margin-bottom: 0.35rem;
+            filter: drop-shadow(0 2px 8px var(--shadow));
+            transition: transform 0.3s ease;
+        }
+        .posture-main-icon:hover { transform: scale(1.08); }
+        .posture-label {
+            font-family: var(--font-heading);
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.2;
+            transition: color var(--transition);
+        }
+        .posture-confidence {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+            transition: color var(--transition);
+        }
+        .posture-time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.4rem;
+            transition: color var(--transition);
+        }
+        .no-data {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.6rem;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 0.7rem 0.4rem;
+            background: var(--stats-item-bg);
+            border-radius: var(--radius-sm);
+            transition: background var(--transition);
+        }
+        .stat-value {
+            font-family: var(--font-mono);
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--accent);
+            transition: color var(--transition);
+        }
+        .stat-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+            transition: color var(--transition);
+        }
+
+        .posture-list { list-style: none; }
+        .posture-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            transition: border-color var(--transition);
+        }
+        .posture-list li:last-child { border-bottom: none; }
+        .posture-name {
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: color var(--transition);
+        }
+        .posture-bar {
+            flex: 1;
+            height: 5px;
+            background: var(--border);
+            border-radius: 3px;
+            margin: 0 0.75rem;
+            overflow: hidden;
+            transition: background var(--transition);
+        }
+        .posture-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.6s ease, background var(--transition);
+        }
+        .posture-percent {
+            font-size: 0.78rem;
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+            min-width: 3rem;
+            text-align: right;
+            transition: color var(--transition);
+        }
+
+        .history-list { max-height: 250px; overflow-y: auto; }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.45rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+            transition: border-color var(--transition);
+        }
+        .history-time { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.72rem; transition: color var(--transition); }
+        .history-posture { font-weight: 500; transition: color var(--transition); }
+        .history-conf { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary); transition: color var(--transition); }
+
+        /* Week */
+        .day-list { max-height: 300px; overflow-y: auto; }
+        .day-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            gap: 0.7rem;
+            font-size: 0.82rem;
+            transition: border-color var(--transition);
+        }
+        .day-date { color: var(--text-secondary); min-width: 4.5rem; font-family: var(--font-mono); transition: color var(--transition); }
+        .day-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: background var(--transition);
+        }
+        .day-main { font-weight: 500; transition: color var(--transition); }
+        .day-count { color: var(--text-muted); margin-left: auto; font-family: var(--font-mono); transition: color var(--transition); }
+
+        /* Calendar */
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .cal-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+            cursor: default;
+        }
+        .cal-cell:hover { transform: scale(1.12); z-index: 2; }
+        .cal-cell.empty { background: var(--cal-empty); color: var(--text-muted); }
+        .cal-labels {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 6px;
+            text-align: center;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            transition: color var(--transition);
+        }
+        .cal-legend {
+            display: flex;
+            gap: 0.9rem;
+            flex-wrap: wrap;
+            margin-top: 0.75rem;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            align-items: center;
+            transition: color var(--transition);
+        }
+        .cal-legend span { display: flex; align-items: center; gap: 0.35rem; }
+        .cal-legend-dot {
+            width: 12px; height: 12px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        /* Report */
+        .report-section { text-align: center; }
+        .period-pills {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin: 0.75rem 0;
+        }
+        .period-pill {
+            padding: 0.35rem 1rem;
+            font-size: 0.78rem;
+            border: 1px solid var(--border);
+            border-radius: 9999px;
+            background: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: var(--font-body);
+        }
+        .period-pill:hover { border-color: var(--border-focus); }
+        .period-pill.active {
+            background: var(--accent);
+            color: var(--btn-primary-text);
+            border-color: var(--accent);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.6rem 1.6rem;
+            border: none;
+            border-radius: 9999px;
+            font-family: var(--font-body);
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .btn-primary {
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+        }
+        .btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .report-content {
+            background: var(--bg-card-alt);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            padding: 1.25rem;
+            line-height: 2;
+            font-size: 0.88rem;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            transition: all var(--transition);
+        }
+
+        .score-ring {
+            width: 90px; height: 90px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0 auto 1rem;
+            border: 4px solid var(--accent-green);
+            color: var(--accent-green);
+            transition: all var(--transition);
+            animation: scoreReveal 0.6s ease-out backwards;
+        }
+        @keyframes scoreReveal {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .report-meta {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            text-align: center;
+            margin-top: 0.8rem;
+            transition: color var(--transition);
+            font-family: var(--font-mono);
+        }
+
+        .month-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        .month-nav-title {
+            font-family: var(--font-heading);
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 8rem;
+            text-align: center;
+            transition: color var(--transition);
+        }
+        .month-nav-btn {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            width: 32px; height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            transition: all var(--transition);
+        }
+        .month-nav-btn:hover {
+            border-color: var(--border-focus);
+            color: var(--accent);
+        }
+        .month-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <h1>Nocturne & Dawn</h1>
+            <span id="statusBadge" class="status-badge status-disconnected"><span class="status-dot"></span>未连接</span>
+        </div>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题" title="切换白天/夜间模式">🌙</button>
+    </div>
+
+    <div class="tab-bar" id="tabBar">
+        <button class="tab-btn active" data-tab="today">Today</button>
+        <button class="tab-btn" data-tab="week">Week</button>
+        <button class="tab-btn" data-tab="month">Month</button>
+        <button class="tab-btn" data-tab="report">Report</button>
+    </div>
+
+    <div class="tab-content active" id="tab-today">
+        <div class="container">
+            <div class="grid-2">
+                <div class="card">
+                    <h2>当前睡姿</h2>
+                    <div id="postureDisplay" class="posture-display"><div class="no-data">等待数据…</div></div>
+                </div>
+                <div class="card">
+                    <h2>今日统计</h2>
+                    <div id="todayStats" class="stats-grid">
+                        <div class="stat-item"><div class="stat-value" id="totalRecords">0</div><div class="stat-label">记录数</div></div>
+                        <div class="stat-item"><div class="stat-value" id="dominantPosture">-</div><div class="stat-label">主要睡姿</div></div>
+                        <div class="stat-item"><div class="stat-value" id="avgConfidence">0%</div><div class="stat-label">平均置信度</div></div>
+                    </div>
+                </div>
+                <div class="card full-width">
+                    <h2>睡姿占比分布</h2>
+                    <canvas id="postureChart" height="110"></canvas>
+                </div>
+                <div class="card">
+                    <h2>今日睡姿详情</h2>
+                    <ul id="postureDetails" class="posture-list"><li class="no-data">暂无数据</li></ul>
+                </div>
+                <div class="card">
+                    <h2>最近记录</h2>
+                    <div id="historyList" class="history-list"><div class="no-data">暂无记录</div></div>
+                </div>
+                <div class="card full-width">
+                    <h2>压力热力图</h2>
+                    <div id="pressureMeta" style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem;font-family:var(--font-mono);">等待数据…</div>
+                    <div style="text-align:center;">
+                        <canvas id="pressureCanvas" width="400" height="300" style="max-width:100%;aspect-ratio:4/3;"></canvas>
+                    </div>
+                    <div id="pressureLegend" style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;font-size:0.7rem;color:var(--text-muted);justify-content:center;"></div>
+                    <div class="vitals-grid" id="vitalsPanel">
+                        <div class="vital-item"><div class="vital-value" id="vitalHR">--</div><div class="vital-label">心率 bpm</div></div>
+                        <div class="vital-item"><div class="vital-value" id="vitalBR">--</div><div class="vital-label">呼吸 /min</div></div>
+                        <div class="vital-item"><div class="vital-value" id="vitalMotion">--</div><div class="vital-label">体动</div></div>
+                        <div class="vital-item"><div class="vital-value" id="vitalSnore">NO</div><div class="vital-label">打鼾</div></div>
+                    </div>
+                    <div class="manual-grid" id="manualPanel">
+                        <button class="manual-btn inflate" data-cmd="MAN_INFLATE 0">L+</button>
+                        <button class="manual-btn inflate" data-cmd="MAN_INFLATE 1">M+</button>
+                        <button class="manual-btn inflate" data-cmd="MAN_INFLATE 2">R+</button>
+                        <button class="manual-btn deflate" data-cmd="MAN_DEFLATE 0">L-</button>
+                        <button class="manual-btn deflate" data-cmd="MAN_DEFLATE 1">M-</button>
+                        <button class="manual-btn deflate" data-cmd="MAN_DEFLATE 2">R-</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-week">
+        <div class="container">
+            <div class="card"><h2>7天睡姿趋势</h2><canvas id="weekChart" height="130"></canvas></div>
+            <div class="card"><h2>每日摘要</h2><div id="weekDayList" class="day-list"></div></div>
+                <div class="card">
+                    <h2>本周总结</h2>
+                    <div id="weekSummary" class="stats-grid">
+                        <div class="stat-item"><div class="stat-value" id="weekRecords">0</div><div class="stat-label">总记录数</div></div>
+                        <div class="stat-item"><div class="stat-value" id="weekDominant">-</div><div class="stat-label">主要睡姿</div></div>
+                        <div class="stat-item"><div class="stat-value" id="weekActive">0/7</div><div class="stat-label">活跃天数</div></div>
+                        <div class="stat-item"><div class="stat-value" id="weekAvgHR">-</div><div class="stat-label">平均心率</div></div>
+                        <div class="stat-item"><div class="stat-value" id="weekAvgBR">-</div><div class="stat-label">平均呼吸</div></div>
+                    </div>
+                    <ul id="weekPostureList" class="posture-list" style="margin-top:0.75rem;"></ul>
+                </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-month">
+        <div class="container">
+            <div class="card">
+                <div class="month-nav">
+                    <button class="month-nav-btn" id="monthPrevBtn">◀</button>
+                    <span class="month-nav-title" id="monthNavTitle">2026年 6月</span>
+                    <button class="month-nav-btn" id="monthNextBtn">▶</button>
+                </div>
+                <div class="cal-labels"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+                <div id="calGrid" class="cal-grid"></div>
+                <div class="cal-legend">
+                    <span><span class="cal-legend-dot" style="background:var(--posture-supine)"></span>仰卧</span>
+                    <span><span class="cal-legend-dot" style="background:var(--posture-left)"></span>左侧卧</span>
+                    <span><span class="cal-legend-dot" style="background:var(--posture-right)"></span>右侧卧</span>
+                    <span><span class="cal-legend-dot" style="background:var(--posture-noise)"></span>其他</span>
+                    <span><span class="cal-legend-dot" style="background:var(--cal-empty)"></span>无数据</span>
+                </div>
+            </div>
+            <div class="card">
+                <h2>月度统计</h2>
+                    <div class="stats-grid">
+                        <div class="stat-item"><div class="stat-value" id="monthRecords">0</div><div class="stat-label">总记录数</div></div>
+                        <div class="stat-item"><div class="stat-value" id="monthActive">0</div><div class="stat-label">活跃天数</div></div>
+                        <div class="stat-item"><div class="stat-value" id="monthAvgHR">-</div><div class="stat-label">平均心率</div></div>
+                        <div class="stat-item"><div class="stat-value" id="monthAvgBR">-</div><div class="stat-label">平均呼吸</div></div>
+                    </div>
+                <ul id="monthPostureList" class="posture-list" style="margin-top:0.75rem;"></ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-report">
+        <div class="container">
+            <div class="card report-section">
+                <h2>选择分析周期</h2>
+                <div class="period-pills">
+                    <button class="period-pill active" data-period="weekly">本周</button>
+                    <button class="period-pill" data-period="monthly">本月</button>
+                </div>
+                <button class="btn btn-primary" id="generateReportBtn" style="margin-top:0.5rem;">✨ 生成智能分析报告</button>
+                <div id="reportLoading" style="display:none;margin-top:0.6rem;color:var(--text-muted);font-size:0.85rem;">正在分析中…</div>
+            </div>
+            <div class="card" id="reportCard" style="display:none;">
+                <h2>AI 睡眠分析报告</h2>
+                <div class="score-ring" id="reportScore">-</div>
+                <div class="report-content" id="reportContent"></div>
+                <div class="report-meta" id="reportMeta"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const postureLabels = {
+            'unlabeled':'未标记','supine':'仰卧','left_lateral':'左侧卧','right_lateral':'右侧卧',
+            'noise':'噪声','left lateral':'左侧卧','right lateral':'右侧卧','prone':'俯卧'
+        };
+        const postureIcons = {
+            'unlabeled':'❓','supine':'😴','left_lateral':'⬅️','right_lateral':'➡️',
+            'noise':'📡','left lateral':'⬅️','right lateral':'➡️','prone':'🫎'
+        };
+        const postureKeys = ['unlabeled','supine','left_lateral','right_lateral','noise'];
+        function labelFor(p) { return postureLabels[p] || p; }
+
+        const postureColors = {
+            'supine':'var(--posture-supine)','left_lateral':'var(--posture-left)',
+            'right_lateral':'var(--posture-right)','noise':'var(--posture-noise)',
+            'unlabeled':'var(--posture-unlabeled)'
+        };
+        const postureColorRaw = {
+            'supine':'#4a90d9','left_lateral':'#4db6ac','right_lateral':'#e8a838',
+            'noise':'#9b7fd4','unlabeled':'#6b7280'
+        };
+        const postureColorRawLight = {
+            'supine':'#4a8dc7','left_lateral':'#4da89a','right_lateral':'#d4953a',
+            'noise':'#8b6fc0','unlabeled':'#9d9990'
+        };
+
+        function rawColor(posture) {
+            return document.documentElement.dataset.theme === 'light'
+                ? (postureColorRawLight[posture] || '#9d9990')
+                : (postureColorRaw[posture] || '#6b7280');
+        }
+
+        function getComputedColor(posture) {
+            const cssVar = postureColors[posture] || 'var(--posture-unlabeled)';
+            if (cssVar.startsWith('var(--')) {
+                const name = cssVar.slice(4, -1);
+                return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            }
+            return cssVar;
+        }
+
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        const saved = localStorage.getItem('sleep-theme');
+        if (saved) { html.dataset.theme = saved; }
+        themeToggle.textContent = html.dataset.theme === 'light' ? '☀️' : '🌙';
+        themeToggle.addEventListener('click', () => {
+            html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+            themeToggle.textContent = html.dataset.theme === 'dark' ? '🌙' : '☀️';
+            localStorage.setItem('sleep-theme', html.dataset.theme);
+            updateChartTheme();
+            if (weekChart) updateWeekChartTheme();
+            if (lastPressureFrame) drawPressureHeatmap(lastPressureFrame);
+        });
+
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+                if (btn.dataset.tab === 'week') loadWeekStats();
+                else if (btn.dataset.tab === 'month') loadMonthStats();
+            });
+        });
+
+        // Socket.IO
+        const socket = io();
+
+        function chartThemeOptions() {
+            return {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, max: 100, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim() || '#8a88a8' }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#1e2140' } },
+                    x: { ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim() || '#8a88a8' }, grid: { display: false } }
+                },
+                plugins: { legend: { labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim() || '#8a88a8', boxWidth: 10, padding: 12, font: { size: 11 } } } }
+            };
+        }
+
+        const postureChart = new Chart(document.getElementById('postureChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: postureKeys.map(k => labelFor(k)),
+                datasets: [{ label: '占比 (%)', data: postureKeys.map(() => 0), backgroundColor: postureKeys.map(k => rawColor(k)), borderRadius: 6 }]
+            },
+            options: chartThemeOptions()
+        });
+
+        function updateChartTheme() {
+            const cs = getComputedStyle(document.documentElement);
+            const gridColor = cs.getPropertyValue('--chart-grid').trim();
+            const textColor = cs.getPropertyValue('--chart-text').trim();
+            postureChart.options.scales.y.ticks.color = textColor;
+            postureChart.options.scales.y.grid.color = gridColor;
+            postureChart.options.scales.x.ticks.color = textColor;
+            postureChart.options.plugins.legend.labels.color = textColor;
+            postureChart.data.datasets[0].backgroundColor = postureKeys.map(k => rawColor(k));
+            postureChart.update();
+        }
+
+        socket.on('status', data => {
+            const badge = document.getElementById('statusBadge');
+            badge.className = 'status-badge status-' + (data.connection === 'connected' ? 'connected' : 'disconnected');
+            badge.innerHTML = '<span class="status-dot"></span>' + (data.connection === 'connected' ? '已连接' : '未连接');
+        });
+
+        let _uiTimer = null, _uiPending = null;
+        function scheduleUiUpdate(data) {
+            _uiPending = data;
+            if (_uiTimer) return;
+            _uiTimer = setTimeout(() => {
+                _uiTimer = null;
+                const d = _uiPending; _uiPending = null;
+                const display = document.getElementById('postureDisplay');
+                const label = labelFor(d.posture);
+                display.innerHTML = `<span class="posture-main-icon">${postureIcons[d.posture] || '❓'}</span><div class="posture-label">${label}</div><div class="posture-confidence">置信度 ${d.confidence}%</div><div class="posture-time">${new Date(d.timestamp).toLocaleTimeString('zh-CN')}</div>`;
+                addHistoryItem(d.timestamp, label, d.confidence);
+                loadTodayStats();
+            }, 2000);
+        }
+        socket.on('posture', data => scheduleUiUpdate(data));
+
+        function addHistoryItem(ts, posture, conf) {
+            const list = document.getElementById('historyList');
+            if (list.querySelector('.no-data')) list.innerHTML = '';
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            const c = getComputedColor(posture);
+            item.innerHTML = `<span class="history-time">${new Date(ts).toLocaleTimeString('zh-CN')}</span><span class="history-posture" style="color:${c}">${posture}</span><span class="history-conf">${conf}%</span>`;
+            list.insertBefore(item, list.firstChild);
+            while (list.children.length > 15) list.removeChild(list.lastChild);
+        }
+
+        let _st = null;
+        function loadTodayStats() {
+            if (_st) return;
+            _st = setTimeout(async () => {
+                _st = null;
+                try {
+                    const res = await fetch('/api/stats/today'); const data = await res.json();
+                    document.getElementById('totalRecords').textContent = data.total;
+                    if (data.postures.length > 0) {
+                        const d = data.postures[0];
+                        document.getElementById('dominantPosture').textContent = labelFor(d.posture);
+                        const cd = postureKeys.map(() => 0);
+                        data.postures.forEach(p => { const i = postureKeys.indexOf(p.posture); if (i >= 0) cd[i] = parseFloat(p.percentage); });
+                        postureChart.data.datasets[0].data = cd;
+                        postureChart.data.datasets[0].backgroundColor = postureKeys.map(k => rawColor(k));
+                        postureChart.update();
+                        const details = document.getElementById('postureDetails');
+                        details.innerHTML = '';
+                        data.postures.forEach(p => {
+                            const li = document.createElement('li');
+                            const c = getComputedColor(p.posture);
+                            li.innerHTML = `<span class="posture-name" style="color:${c}">${labelFor(p.posture)}</span><div class="posture-bar"><div class="posture-bar-fill" style="width:${p.percentage}%;background:${c}"></div></div><span class="posture-percent">${p.percentage}%</span>`;
+                            details.appendChild(li);
+                        });
+                        const ac = data.postures.reduce((s,p) => s + parseFloat(p.avgConfidence), 0) / data.postures.length;
+                        document.getElementById('avgConfidence').textContent = ac.toFixed(0) + '%';
+                    }
+                } catch(e) { console.error(e); }
+            }, 200);
+        }
+
+        // Week
+        let weekChart = null;
+        async function loadWeekStats() {
+            try {
+                const res = await fetch('/api/stats/weekly'); const d = await res.json();
+                const labels = d.days.map(dd => dd.day.slice(5));
+                const types = ['supine','left_lateral','right_lateral'];
+                const datasets = types.map(p => ({
+                    label: labelFor(p),
+                    data: d.days.map(dd => { const r = dd.postures.find(pp => pp.posture === p); return r ? parseFloat(r.percentage) : 0; }),
+                    backgroundColor: rawColor(p)
+                }));
+                if (weekChart) weekChart.destroy();
+                const ctx = document.getElementById('weekChart').getContext('2d');
+                weekChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels, datasets },
+                    options: {
+                        responsive: true,
+                        scales: { x: { stacked: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim() }, grid: { display: false } }, y: { stacked: true, max: 100, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim() }, grid: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() } } },
+                        plugins: { legend: { position: 'bottom', labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text').trim(), boxWidth: 10, padding: 10, font: { size: 10 } } } }
+                    }
+                });
+
+                const dl = document.getElementById('weekDayList');
+                dl.innerHTML = '';
+                d.days.forEach(dd => {
+                    const div = document.createElement('div');
+                    div.className = 'day-item';
+                    const c = getComputedColor(dd.dominant || 'unlabeled');
+                    div.innerHTML = `<span class="day-date">${dd.day}</span><div class="day-dot" style="background:${c}"></div><span class="day-main">${dd.active ? labelFor(dd.dominant)+' '+dd.dominantPct+'%' : '无数据'}</span><span class="day-count">${dd.total}条</span>`;
+                    dl.appendChild(div);
+                });
+                document.getElementById('weekRecords').textContent = d.summary.totalRecords;
+                document.getElementById('weekDominant').textContent = labelFor(d.summary.dominant);
+                document.getElementById('weekActive').textContent = d.summary.activeDays + '/7';
+                document.getElementById('weekAvgHR').textContent = d.summary.avgHR > 0 ? d.summary.avgHR : '-';
+                document.getElementById('weekAvgBR').textContent = d.summary.avgBR > 0 ? d.summary.avgBR : '-';
+                const pl = document.getElementById('weekPostureList');
+                pl.innerHTML = '';
+                d.summary.postures.forEach(p => {
+                    const li = document.createElement('li');
+                    const c = getComputedColor(p.posture);
+                    li.innerHTML = `<span class="posture-name" style="color:${c}">${labelFor(p.posture)}</span><div class="posture-bar"><div class="posture-bar-fill" style="width:${p.percentage}%;background:${c}"></div></div><span class="posture-percent">${p.percentage}%</span>`;
+                    pl.appendChild(li);
+                });
+            } catch(e) { console.error(e); }
+        }
+        function updateWeekChartTheme() {
+            if (!weekChart) return;
+            const cs = getComputedStyle(document.documentElement);
+            const textC = cs.getPropertyValue('--chart-text').trim();
+            const gridC = cs.getPropertyValue('--chart-grid').trim();
+            [weekChart.options.scales.x.ticks, weekChart.options.scales.y.ticks].forEach(t => t.color = textC);
+            weekChart.options.scales.y.grid.color = gridC;
+            weekChart.options.plugins.legend.labels.color = textC;
+            // Rebuild datasets with updated colors
+            const types = ['supine','left_lateral','right_lateral'];
+            weekChart.data.datasets.forEach((ds, i) => {
+                ds.backgroundColor = rawColor(types[i]);
+            });
+            weekChart.update();
+        }
+
+        // Month
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+
+        document.getElementById('monthPrevBtn').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+            loadMonthStats();
+        });
+        document.getElementById('monthNextBtn').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+            loadMonthStats();
+        });
+
+        async function loadMonthStats() {
+            try {
+                document.getElementById('monthNavTitle').textContent = `${currentYear}年 ${currentMonth+1}月`;
+                const res = await fetch(`/api/stats/monthly?year=${currentYear}&month=${currentMonth}`);
+                const d = await res.json();
+                const firstD = d.days[0].day;
+                const startDow = new Date(firstD + 'T00:00:00').getDay();
+                const daysInMonth = d.days.length;
+                const grid = document.getElementById('calGrid');
+                grid.innerHTML = '';
+                for (let i = 0; i < startDow; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cal-cell empty';
+                    grid.appendChild(cell);
+                }
+                d.days.forEach(dd => {
+                    const cell = document.createElement('div');
+                    const dt = new Date(dd.day + 'T00:00:00');
+                    if (dd.active) {
+                        cell.className = 'cal-cell';
+                        cell.style.background = getComputedColor(dd.dominant || 'unlabeled');
+                        cell.style.color = '#fff';
+                    } else {
+                        cell.className = 'cal-cell empty';
+                    }
+                    cell.textContent = dt.getDate();
+                    cell.title = dd.day + ': ' + (dd.active ? labelFor(dd.dominant)+' ('+dd.total+'条)' : '无数据');
+                    grid.appendChild(cell);
+                });
+                document.getElementById('monthRecords').textContent = d.summary.totalRecords;
+                document.getElementById('monthActive').textContent = d.summary.activeDays + '/' + daysInMonth;
+                document.getElementById('monthAvgHR').textContent = d.summary.avgHR > 0 ? d.summary.avgHR : '-';
+                document.getElementById('monthAvgBR').textContent = d.summary.avgBR > 0 ? d.summary.avgBR : '-';
+                const pl = document.getElementById('monthPostureList');
+                pl.innerHTML = '';
+                d.summary.postures.forEach(p => {
+                    const li = document.createElement('li');
+                    const c = getComputedColor(p.posture);
+                    li.innerHTML = `<span class="posture-name" style="color:${c}">${labelFor(p.posture)}</span><div class="posture-bar"><div class="posture-bar-fill" style="width:${p.percentage}%;background:${c}"></div></div><span class="posture-percent">${p.percentage}%</span>`;
+                    pl.appendChild(li);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        // Report
+        let reportPeriod = 'weekly';
+        document.querySelectorAll('.period-pill').forEach(b => {
+            b.addEventListener('click', () => {
+                document.querySelectorAll('.period-pill').forEach(pb => pb.classList.remove('active'));
+                b.classList.add('active');
+                reportPeriod = b.dataset.period;
+            });
+        });
+        document.getElementById('generateReportBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('generateReportBtn');
+            const load = document.getElementById('reportLoading');
+            const card = document.getElementById('reportCard');
+            btn.disabled = true; load.style.display = 'block'; card.style.display = 'none';
+            try {
+                const res = await fetch('/api/report/generate', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ periodType: reportPeriod })
+                });
+                const data = await res.json();
+                if (data.content) {
+                    document.getElementById('reportContent').textContent = data.content;
+                    const s = data.score || 0;
+                    document.getElementById('reportScore').textContent = s;
+                    const ring = document.getElementById('reportScore');
+                    let c = s >= 80 ? 'var(--accent-green)' : s >= 60 ? 'var(--accent-orange)' : 'var(--accent-red)';
+                    ring.style.borderColor = c; ring.style.color = c;
+                    document.getElementById('reportMeta').textContent = data.cached ? '(已缓存)' : '(新生成)';
+                    card.style.display = '';
+                }
+            } catch(e) { console.error(e); document.getElementById('reportContent').textContent = '生成失败，请重试。'; card.style.display = ''; }
+            load.style.display = 'none'; btn.disabled = false;
+        });
+
+        // Init
+        loadTodayStats();
+        setInterval(loadTodayStats, 2000);
+
+        async function loadInitialHistory() {
+            try {
+                const res = await fetch('/api/records/recent?limit=15');
+                const data = await res.json();
+                data.reverse().forEach(r => {
+                    addHistoryItem(r.timestamp, labelFor(r.posture), Math.round(r.confidence * 100));
+                });
+            } catch(e) {}
+        }
+        loadInitialHistory();
+
+        // =================== 压力热力图 ===================
+        let lastPressureFrame = null;
+
+        function drawPressureHeatmap(data) {
+            const canvas = document.getElementById('pressureCanvas');
+            const ctx = canvas.getContext('2d');
+            const vals = data.data;
+            const w = canvas.width, h = canvas.height;
+            const rows = 16, cols = 16;
+            const cellW = (w - 60) / cols;
+            const cellH = (h - 40) / rows;
+            const offsetX = 40, offsetY = 20;
+
+            const PRESSURE_MIN = 0;
+            const PRESSURE_MAX = 255;
+            const PRESSURE_RANGE = PRESSURE_MAX - PRESSURE_MIN;
+
+            const min = Math.min(...vals);
+            const max = Math.max(...vals);
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#11142a';
+            ctx.fillRect(0, 0, w, h);
+
+            function valueToColor(v) {
+                const t = (v - PRESSURE_MIN) / PRESSURE_RANGE;
+                const r = Math.round(t * 255);
+                const g = Math.round((1 - Math.abs(t - 0.5) * 2) * 255);
+                const b = Math.round((1 - t) * 255);
+                return `rgb(${r},${g},${b})`;
+            }
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const idx = r * cols + (cols - 1 - c);
+                    const x = offsetX + c * cellW;
+                    const y = offsetY + r * cellH;
+                    ctx.fillStyle = valueToColor(vals[idx]);
+                    ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
+                }
+            }
+
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#5a5880';
+            ctx.font = '10px monospace';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let r = 0; r < rows; r++) {
+                ctx.fillText(`R${String(r).padStart(2,'0')}`, offsetX - 4, offsetY + r * cellH + cellH / 2);
+            }
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let c = 0; c < cols; c++) {
+                ctx.fillText(`C${String(c).padStart(2,'0')}`, offsetX + c * cellW + cellW / 2, offsetY + rows * cellH + 4);
+            }
+
+            document.getElementById('pressureMeta').textContent =
+                `第 ${data.seq} 帧 - ${new Date(data.timestamp).toLocaleTimeString('zh-CN')}`;
+
+            const legend = document.getElementById('pressureLegend');
+            legend.innerHTML = `
+                <span style="color:${valueToColor(0)}">■</span>
+                <span>0</span>
+                <span style="flex:1;max-width:120px;height:8px;border-radius:4px;background:linear-gradient(to right,${valueToColor(0)},${valueToColor(64)},${valueToColor(128)},${valueToColor(192)},${valueToColor(255)});"></span>
+                <span>255</span>
+                <span style="color:${valueToColor(255)}">■</span>
+                <span style="margin-left:0.8rem;color:var(--text-muted);">本帧 ${min}~${max}</span>
+            `;
+        }
+
+        socket.on('pressure', data => {
+            lastPressureFrame = data;
+            drawPressureHeatmap(data);
+        });
+
+        socket.on('radar', data => {
+            document.getElementById('vitalHR').textContent = data.hr > 0 ? data.hr : '--';
+            document.getElementById('vitalBR').textContent = data.br > 0 ? data.br : '--';
+            document.getElementById('vitalMotion').textContent = data.motion >= 0 ? data.motion : '--';
+        });
+
+        socket.on('snore', data => {
+            const el = document.getElementById('vitalSnore');
+            if (data.snore) {
+                el.textContent = 'YES ' + data.confidence + '%';
+                el.className = 'vital-value vital-snore-yes';
+            } else {
+                el.textContent = 'NO';
+                el.className = 'vital-value vital-snore-no';
+            }
+        });
+
+        document.querySelectorAll('.manual-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                socket.emit('airbag_cmd', btn.dataset.cmd);
+            });
+        });
+
+        (async function loadLatestPressure() {
+            try {
+                const res = await fetch('/api/pressure/frames');
+                const frames = await res.json();
+                if (frames.length > 0) {
+                    lastPressureFrame = frames[frames.length - 1];
+                    drawPressureHeatmap(lastPressureFrame);
+                }
+            } catch(e) { console.error(e); }
+        })();
+    </script>
+</body>
+</html>

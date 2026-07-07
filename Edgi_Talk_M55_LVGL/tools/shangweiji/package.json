@@ -1,0 +1,16 @@
+{
+  "name": "sleep-monitor",
+  "version": "1.0.0",
+  "description": "Edgi Talk 睡姿监测系统上位机 - WiFi TCP版",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "express": "^4.18.0",
+    "socket.io": "^4.7.0",
+    "socket.io-client": "^4.7.0",
+    "sql.js": "^1.10.0"
+  }
+}

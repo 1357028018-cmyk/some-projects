@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edgi Talk M55 - Health / Pressure</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #1a1a2e;
+      font-family: 'Segoe UI', -apple-system, sans-serif;
+    }
+
+    .device {
+      width: 512px;
+      height: 800px;
+      background: #F0F4F8;
+      border-radius: 32px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: 0 16px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      margin-top: 12px;
+      flex-shrink: 0;
+      gap: 12px;
+    }
+    .back-btn {
+      background: #E74C3C;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+
+    .posture-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 14px;
+      flex-shrink: 0;
+    }
+    .posture-label {
+      font-size: 11px;
+      color: #94A3B8;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+    }
+    .posture-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+    .posture-pill {
+      background: #E0F2FE;
+      color: #0369A1;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .heatmap-wrap {
+      margin-top: 14px;
+      display: flex;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .heatmap {
+      background: #404040;
+      padding: 2px;
+      border-radius: 6px;
+      display: grid;
+      grid-template-columns: repeat(16, 22px);
+      grid-template-rows: repeat(16, 14px);
+      gap: 1px;
+    }
+    .cell { border-radius: 1px; }
+    .cell.h0 { background: #000; }
+    .cell.h1 { background: #301000; }
+    .cell.h2 { background: #802000; }
+    .cell.h3 { background: #C04020; }
+    .cell.h4 { background: #FF5A2D; }
+    .cell.h5 { background: #FF9070; }
+    .cell.h6 { background: #FFC0B0; }
+
+    .bottom-row {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+
+    .airbag-card {
+      background: #FFFFFF;
+      border-radius: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      padding: 14px 12px 12px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94A3B8;
+      letter-spacing: 1.2px;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .pillow {
+      background: #ECEFF1;
+      border: 2px solid #B0BEC5;
+      border-radius: 14px;
+      height: 130px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 6px;
+    }
+    .bag {
+      width: 44px;
+      height: 100px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #1E293B;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+    .bag.idle { background: #9CA3AF; color: #fff; }
+    .bag.filling { background: #FFD700; color: #1E293B; }
+    .bag.almost { background: #FF8C00; color: #fff; }
+    .bag.full { background: #22C55E; color: #fff; }
+    .bag .bag-sec {
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 2px;
+      opacity: 0.9;
+    }
+
+    .state-row {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #475569;
+    }
+    .state-tag {
+      background: #1E293B;
+      color: #fff;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-weight: 700;
+    }
+
+    .data-card {
+      background: #E8F0FE;
+      border-radius: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .data-row {
+      background: #fff;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .data-label {
+      font-size: 12px;
+      color: #64748B;
+      font-weight: 600;
+    }
+    .data-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+    .data-value.alert { color: #DC2626; }
+    .data-value.good { color: #16A34A; }
+    .data-unit {
+      font-size: 10px;
+      color: #94A3B8;
+      font-weight: 500;
+      margin-left: 2px;
+    }
+
+    .footer {
+      margin-top: auto;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .legend {
+      font-size: 10px;
+      color: #64748B;
+      display: flex;
+      gap: 10px;
+    }
+    .legend-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      margin-right: 3px;
+      vertical-align: middle;
+    }
+    .test-btn {
+      background: #2980B9;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 24px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="device">
+
+    <div class="header">
+      <button class="back-btn">&larr; Back</button>
+      <span class="title">Health Monitor</span>
+    </div>
+
+    <div class="posture-row">
+      <span class="posture-label">POSTURE</span>
+      <span class="posture-value">Right Lateral</span>
+      <span class="posture-pill">stable</span>
+    </div>
+
+    <div class="heatmap-wrap">
+      <div class="heatmap">
+        <div class="cell h1"></div><div class="cell h2"></div><div class="cell h1"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h1"></div><div class="cell h2"></div>
+        <div class="cell h2"></div><div class="cell h3"></div><div class="cell h2"></div><div class="cell h1"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h1"></div><div class="cell h2"></div><div class="cell h3"></div>
+        <div class="cell h1"></div><div class="cell h2"></div><div class="cell h1"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h1"></div><div class="cell h2"></div>
+        <div class="cell h0"></div><div class="cell h1"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h1"></div>
+        <div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div>
+        <div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div>
+        <div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div>
+        <div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div>
+        <div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div>
+        <div class="cell h1"></div><div class="cell h2"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h1"></div>
+        <div class="cell h2"></div><div class="cell h3"></div><div class="cell h2"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h2"></div><div class="cell h3"></div>
+        <div class="cell h3"></div><div class="cell h4"></div><div class="cell h3"></div><div class="cell h1"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h3"></div><div class="cell h4"></div>
+        <div class="cell h4"></div><div class="cell h5"></div><div class="cell h4"></div><div class="cell h2"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h1"></div><div class="cell h4"></div><div class="cell h5"></div>
+        <div class="cell h4"></div><div class="cell h5"></div><div class="cell h4"></div><div class="cell h2"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h1"></div><div class="cell h4"></div><div class="cell h5"></div>
+        <div class="cell h3"></div><div class="cell h4"></div><div class="cell h3"></div><div class="cell h1"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h3"></div><div class="cell h4"></div>
+        <div class="cell h2"></div><div class="cell h3"></div><div class="cell h2"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h0"></div><div class="cell h2"></div><div class="cell h3"></div>
+      </div>
+    </div>
+
+    <div class="bottom-row">
+      <div class="airbag-card">
+        <div class="card-title">AIRBAG STATUS</div>
+        <div class="pillow">
+          <div class="bag full">L<span class="bag-sec">5s</span></div>
+          <div class="bag full">M<span class="bag-sec">3s</span></div>
+          <div class="bag full">R<span class="bag-sec">5s</span></div>
+        </div>
+        <div class="state-row">
+          <span>State:</span>
+          <span class="state-tag">COMFORT</span>
+        </div>
+      </div>
+
+      <div class="data-card">
+        <div class="card-title">VITAL SIGNS</div>
+        <div class="data-row">
+          <span class="data-label">Heart Rate</span>
+          <span><span class="data-value good">72</span><span class="data-unit">bpm</span></span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">Breath Rate</span>
+          <span><span class="data-value">16</span><span class="data-unit">/min</span></span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">Snore</span>
+          <span class="data-value">NO</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="legend">
+        <span><span class="legend-dot" style="background:#9CA3AF"></span>0s</span>
+        <span><span class="legend-dot" style="background:#FFD700"></span>&lt;3s</span>
+        <span><span class="legend-dot" style="background:#FF8C00"></span>&lt;5s</span>
+        <span><span class="legend-dot" style="background:#22C55E"></span>5s</span>
+      </div>
+      <button class="test-btn">&#9654; TEST</button>
+    </div>
+
+  </div>
+</body>
+</html>

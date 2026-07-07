@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edgi Talk M55 - Alarm</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #1a1a2e;
+      font-family: 'Segoe UI', -apple-system, sans-serif;
+    }
+
+    .device {
+      width: 512px;
+      height: 800px;
+      background: #F0F4F8;
+      border-radius: 32px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+    }
+
+    /* ── 遮罩层 ── */
+    .overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 1;
+    }
+
+    /* ── 弹窗通用 ── */
+    .modal {
+      position: absolute;
+      background: #FFFFFF;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 16px 20px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid #E2E8F0;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+
+    /* ── 设置弹窗 ── */
+    .settings-modal {
+      width: 440px;
+      top: 60px;
+      left: 36px;
+      height: 680px;
+    }
+    .alarm-list {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+    .alarm-row {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 64px;
+    }
+
+    /* 开关 */
+    .switch {
+      width: 40px;
+      height: 22px;
+      border-radius: 11px;
+      background: #CBD5E1;
+      position: relative;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .switch.on { background: #22C55E; }
+    .switch::after {
+      content: '';
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: left 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .switch.on::after { left: 20px; }
+
+    /* 时间 */
+    .alarm-time {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1E293B;
+      letter-spacing: 1px;
+      min-width: 60px;
+    }
+
+    /* 重复模式 */
+    .alarm-repeat {
+      font-size: 13px;
+      color: #64748B;
+      font-weight: 600;
+      flex: 1;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .alarm-repeat:hover { background: #E0F2FE; }
+
+    /* 设置按钮 */
+    .setting-btn {
+      background: #3B82F6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* 底部按钮 */
+    .modal-footer {
+      padding: 12px 20px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border-top: 1px solid #E2E8F0;
+    }
+    .btn-save {
+      background: #10B981;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 36px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      min-width: 120px;
+    }
+    .btn-cancel {
+      background: #EF4444;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 36px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      min-width: 120px;
+    }
+
+    /* ── 时间选择器弹窗 (右上角预览) ── */
+    .picker-modal {
+      width: 360px;
+      top: 140px;
+      left: 76px;
+      height: 280px;
+      display: none;
+    }
+    .picker-body {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex: 1;
+    }
+    .roller {
+      width: 80px;
+      height: 100px;
+      background: #F1F5F9;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      color: #1E293B;
+      position: relative;
+    }
+    .roller::before, .roller::after {
+      content: '';
+      width: 100%;
+      height: 30px;
+      position: absolute;
+      left: 0;
+      pointer-events: none;
+    }
+    .roller::before {
+      top: 0;
+      background: linear-gradient(to bottom, #F1F5F9, transparent);
+    }
+    .roller::after {
+      bottom: 0;
+      background: linear-gradient(to top, #F1F5F9, transparent);
+    }
+    .roller .sel {
+      background: #E0F2FE;
+      border-radius: 6px;
+      padding: 4px 12px;
+      color: #0369A1;
+      z-index: 1;
+    }
+    .roller .dim { color: #CBD5E1; font-size: 18px; }
+    .picker-colon {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+
+    /* ── 响铃弹窗 (右上角预览) ── */
+    .ring-modal {
+      width: 380px;
+      top: 200px;
+      left: 66px;
+      height: 240px;
+      display: none;
+    }
+    .ring-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      flex: 1;
+      padding: 20px;
+    }
+    .ring-icon {
+      font-size: 48px;
+    }
+    .ring-text {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+    .ring-time {
+      font-size: 36px;
+      font-weight: 700;
+      color: #E74C3C;
+      letter-spacing: 2px;
+    }
+    .ring-buttons {
+      display: flex;
+      gap: 12px;
+      padding: 0 20px 16px;
+    }
+    .btn-dismiss {
+      background: #E74C3C;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      flex: 1;
+    }
+    .btn-snooze {
+      background: #3B82F6;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    /* ── 切换标签 ── */
+    .tab-bar {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+    }
+    .tab {
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748B;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: #1E293B;
+      color: #fff;
+      border-color: #1E293B;
+    }
+  </style>
+</head>
+<body>
+  <div class="device">
+    <div class="overlay"></div>
+
+    <!-- ════════ 设置弹窗 ════════ -->
+    <div class="modal settings-modal" id="settings">
+      <div class="modal-header">
+        <span class="modal-title">Alarm Settings</span>
+      </div>
+      <div class="alarm-list">
+        <!-- Row 1 -->
+        <div class="alarm-row">
+          <div class="switch on"></div>
+          <span class="alarm-time">07:00</span>
+          <span class="alarm-repeat">Everyday</span>
+          <button class="setting-btn">Setting</button>
+        </div>
+        <!-- Row 2 -->
+        <div class="alarm-row">
+          <div class="switch on"></div>
+          <span class="alarm-time">12:30</span>
+          <span class="alarm-repeat">Weekdays</span>
+          <button class="setting-btn">Setting</button>
+        </div>
+        <!-- Row 3 -->
+        <div class="alarm-row">
+          <div class="switch"></div>
+          <span class="alarm-time" style="color:#94A3B8">22:00</span>
+          <span class="alarm-repeat" style="color:#94A3B8">Once</span>
+          <button class="setting-btn">Setting</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-save">Save</button>
+        <button class="btn-cancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ════════ 时间选择器弹窗 ════════ -->
+    <div class="modal picker-modal" id="picker" style="display:none">
+      <div class="modal-header">
+        <span class="modal-title">Set Time - Alarm 1</span>
+      </div>
+      <div class="picker-body">
+        <div class="roller">
+          <div class="dim">05</div>
+          <div class="sel">07</div>
+          <div class="dim">08</div>
+        </div>
+        <span class="picker-colon">:</span>
+        <div class="roller">
+          <div class="dim">58</div>
+          <div class="sel">00</div>
+          <div class="dim">01</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-save">OK</button>
+        <button class="btn-cancel">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ════════ 响铃弹窗 ════════ -->
+    <div class="modal ring-modal" id="ring" style="display:none">
+      <div class="modal-header">
+        <span class="modal-title">Alarm 07:00</span>
+      </div>
+      <div class="ring-body">
+        <div class="ring-icon">&#128276;</div>
+        <div class="ring-text">Alarm!</div>
+        <div class="ring-time">07:00</div>
+      </div>
+      <div class="ring-buttons">
+        <button class="btn-dismiss">Dismiss</button>
+        <button class="btn-snooze">Snooze 5min</button>
+      </div>
+    </div>
+
+    <!-- ════════ 切换标签 ════════ -->
+    <div class="tab-bar">
+      <div class="tab active" onclick="showTab('settings')">Settings</div>
+      <div class="tab" onclick="showTab('picker')">Time Picker</div>
+      <div class="tab" onclick="showTab('ring')">Ring</div>
+    </div>
+
+  </div>
+
+  <script>
+    function showTab(id) {
+      document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+      document.getElementById(id).style.display = 'flex';
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+  </script>
+</body>
+</html>

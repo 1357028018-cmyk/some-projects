@@ -1,0 +1,3 @@
+# Empty SConscript to prevent parent build system from scanning this directory
+# This is a Node.js project, not part of RT-Thread firmware
+Return('')

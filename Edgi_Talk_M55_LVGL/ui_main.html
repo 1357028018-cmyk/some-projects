@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edgi Talk M55 - Main</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #1a1a2e;
+      font-family: 'Segoe UI', -apple-system, sans-serif;
+    }
+
+    .device {
+      width: 512px;
+      height: 800px;
+      background: #F0F4F8;
+      border-radius: 32px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 16px;
+    }
+
+    /* ── 时钟区 ── */
+    .clock-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 40px;
+    }
+    .clock-area .time {
+      font-size: 56px;
+      font-weight: 700;
+      color: #1E293B;
+      letter-spacing: 2px;
+      line-height: 1;
+    }
+    .clock-area .date {
+      font-size: 14px;
+      color: #94A3B8;
+      margin-top: 6px;
+    }
+    .clock-area .wifi-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 8px;
+      font-size: 13px;
+      color: #64748B;
+    }
+    .clock-area .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10B981;
+      display: inline-block;
+    }
+
+    /* ── 温湿度水平条 ── */
+    .sensor-block {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 30px;
+      width: 300px;
+    }
+    .sensor-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sensor-row .label {
+      width: 38px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748B;
+      flex-shrink: 0;
+    }
+    .sensor-row .track {
+      flex: 1;
+      height: 20px;
+      background: #E2E8F0;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    .sensor-row .fill {
+      height: 100%;
+      border-radius: 10px;
+    }
+    .sensor-row .value {
+      width: 44px;
+      text-align: right;
+      font-size: 14px;
+      font-weight: 700;
+      color: #1E293B;
+      flex-shrink: 0;
+    }
+    .fill-temp { background: #E74C3C; width: 52%; }
+    .fill-humi { background: #3498DB; width: 58%; }
+
+    /* ── 卡片 2×2 ── */
+    .card-grid {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+      margin-top: 30px;
+    }
+    .card-row {
+      display: flex;
+      gap: 60px;
+    }
+    .card {
+      width: 120px;
+      height: 130px;
+      background: #2D3E50;
+      border-radius: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 18px;
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.15s;
+      user-select: none;
+    }
+    .card:active {
+      transform: scale(0.95);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .card-icon {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      color: #FFFFFF;
+      flex-shrink: 0;
+    }
+    .card .name {
+      margin-top: auto;
+      margin-bottom: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    .tagline {
+      margin-top: 40px;
+      font-size: 13px;
+      color: #94A3B8;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: lowercase;
+      text-align: center;
+    }
+    .icon-health  { background: #E74C3C; }
+    .icon-wifi    { background: #3498DB; }
+    .icon-ip      { background: #E67E22; }
+    .icon-alarm   { background: #E74C3C; }
+
+    /* ── 底部状态条 ── */
+    .footer {
+      margin-top: auto;
+      margin-bottom: 20px;
+    }
+    .sys-bar {
+      background: #E2E8F0;
+      border-radius: 8px;
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 12px;
+      color: #64748B;
+    }
+    .sys-bar .sep {
+      width: 1px;
+      height: 12px;
+      background: #CBD5E1;
+    }
+    .sys-bar .ok {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .sys-bar .ok::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #10B981;
+    }
+  </style>
+</head>
+<body>
+  <div class="device">
+
+    <div class="clock-area">
+      <div class="time">14:28</div>
+      <div class="date">Sunday, Jun 28</div>
+      <div class="wifi-row"><span class="dot"></span>Connected</div>
+    </div>
+
+    <div class="sensor-block">
+      <div class="sensor-row">
+        <span class="label">Temp</span>
+        <div class="track"><div class="fill fill-temp"></div></div>
+        <span class="value">26°C</span>
+      </div>
+      <div class="sensor-row">
+        <span class="label">Humi</span>
+        <div class="track"><div class="fill fill-humi"></div></div>
+        <span class="value">58%</span>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card-row">
+        <div class="card">
+          <div class="card-icon icon-health">+</div>
+          <span class="name">Health</span>
+        </div>
+        <div class="card">
+          <div class="card-icon icon-wifi">&#x2261;</div>
+          <span class="name">WiFi</span>
+        </div>
+      </div>
+      <div class="card-row">
+        <div class="card">
+          <div class="card-icon icon-ip">&#x2699;</div>
+          <span class="name">IP Config</span>
+        </div>
+        <div class="card">
+          <div class="card-icon icon-alarm">&#x1F514;</div>
+          <span class="name">Alarm</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tagline">design for ai &amp; ai for design</div>
+
+    <div class="footer">
+      <div class="sys-bar">
+        <span class="ok">System OK</span>
+        <span class="sep"></span>
+        <span>FW v2.1.3</span>
+        <span class="sep"></span>
+        <span>Uptime 12:34:56</span>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
