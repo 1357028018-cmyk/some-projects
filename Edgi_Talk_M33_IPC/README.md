@@ -43,7 +43,7 @@ Connect the CH340 module to the development board as follows:
 
 ![serial_connection](figures/2.png)
 
-> **Important Notes**:
+> ⚠️ **Important Notes**:
 > 1. TX and RX must be cross-connected (CH340 TX to board RX)
 > 2. Ensure GND is common between both devices
 
@@ -159,14 +159,14 @@ M55 depends on M33 boot flow. Flash in this order:
 |   Secure M33     |
 |  (Secure Core)   |
 +------------------+
-          |
-          v
+		  |
+		  v
 +------------------+
 |       M33        |
 |   (IPC Sender)   |
 +------------------+
-          |
-          v
+		  |
+		  v
 +-------------------+
 |       M55         |
 |  (IPC Receiver)   |
@@ -193,7 +193,7 @@ The following parameters can be modified in `libraries/HAL_Drivers/ipc_common.h`
 
 ## Notes
 
-> **Note:** This project requires **RT-Thread Studio 2.2.9** or higher.
+> **⚠️ Note:** This project requires **RT-Thread Studio 2.2.9** or higher.
 
 * This project targets M33 core as IPC sender.
 * For M55 receiver, see [projects/Edgi_Talk_IPC/Edgi_Talk_M55_IPC/README.md](../Edgi_Talk_M55_IPC/README.md).

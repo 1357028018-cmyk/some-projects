@@ -1,0 +1,85 @@
+import rtconfig
+from building import *
+import os
+
+cwd  = GetCurrentDir()
+
+# ================================================================
+#  Include Paths
+# ================================================================
+ei_model = os.path.join(cwd, 'ei_model')
+ei_sdk   = os.path.join(ei_model, 'edge-impulse-sdk')
+ei_tflm  = os.path.join(ei_sdk,   'tensorflow')
+
+include_paths = [
+    cwd,
+    ei_model,
+    os.path.join(ei_model, 'model-parameters'),
+    os.path.join(ei_model, 'tflite-model'),
+    ei_sdk,
+    os.path.join(ei_sdk, 'porting'),
+    os.path.join(ei_sdk, 'classifier'),
+    os.path.join(ei_sdk, 'dsp'),
+    ei_tflm,
+    os.path.join(ei_tflm, 'lite', 'kernels', 'internal'),
+]
+
+# ================================================================
+#  Compiler Defines
+# ================================================================
+cppdefines = [
+    'EI_CLASSIFIER_TFLITE_ENABLE_CMSIS_NN=0',
+    'EIDSP_USE_CMSIS_DSP=0',
+    'EIDSP_LOAD_CMSIS_DSP_SOURCES=0',
+    'EI_PORTING_STM32_CUBEAI=0',
+    'EI_PORTING_POSIX=0',
+    'EI_PORTING_ESPRESSIF=0',
+    'EI_PORTING_SILABS=0',
+    'TF_LITE_DISABLE_X86_NEON=1',
+]
+
+# ================================================================
+#  Source Files
+# ================================================================
+
+app_src_c   = Glob('*.c')
+app_src_cpp = Glob('*.cpp')
+
+model_src = Glob(os.path.join(ei_model, 'tflite-model', '*.cpp'))
+
+classifier_src = Glob(os.path.join(ei_sdk, 'classifier', '*.cpp'))
+
+dsp_src = (Glob(os.path.join(ei_sdk, 'dsp', '*.cpp')) +
+           Glob(os.path.join(ei_sdk, 'dsp', '*', '*.cpp')))
+
+micro_fw_src = (Glob(os.path.join(ei_tflm, 'lite', 'micro', '*.cc')) +
+                Glob(os.path.join(ei_tflm, 'lite', 'micro', 'memory_planner', '*.cc')))
+
+micro_kernel_src = Glob(os.path.join(ei_tflm, 'lite', 'micro', 'kernels', '*.cc'))
+
+micro_kernel_exclude = [
+    'kernel_runner.cc',
+    'test_helpers.cc',
+    'test_helper_custom_ops.cc',
+    'mock_micro_graph.cc',
+]
+micro_kernel_src = [f for f in micro_kernel_src
+                    if os.path.basename(str(f)) not in micro_kernel_exclude]
+
+core_api_src = Glob(os.path.join(ei_tflm, 'lite', 'core', 'api', '*.cc'))
+
+all_src = (app_src_c + app_src_cpp + model_src + classifier_src +
+           dsp_src + micro_fw_src + micro_kernel_src + core_api_src)
+
+group = DefineGroup('Applications',
+                    all_src,
+                    depend=[''],
+                    CPPPATH=include_paths,
+                    CPPDEFINES=cppdefines)
+
+list = os.listdir(cwd)
+for item in list:
+    if os.path.isfile(os.path.join(cwd, item, 'SConscript')):
+        group = group + SConscript(os.path.join(item, 'SConscript'))
+
+Return('group')

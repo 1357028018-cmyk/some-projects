@@ -10,6 +10,9 @@ config RTT_DIR
     option env="RTT_ROOT"
     default "rt-thread"
 
+# you can change the RTT_ROOT default "rt-thread"
+# example : default "F:/git_repositories/rt-thread"
+
 config PKGS_DIR
     string
     option env="PKGS_ROOT"
